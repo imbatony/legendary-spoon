@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { APITester } from "./APITester";
 import { TodoList } from "./TodoList";
+import { FileTransfer } from "./FileTransfer";
 import "./index.css";
 
 import logo from "./logo.svg";
@@ -55,8 +56,7 @@ export function App() {
         )}
         {activeTab === "files" && (
           <div className="module">
-            <h2>文件传输</h2>
-            <p>功能开发中...</p>
+            <FileTransfer />
           </div>
         )}
         {activeTab === "reminders" && (
