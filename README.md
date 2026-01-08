@@ -50,22 +50,39 @@ bun run db:seed
 
 ## 生产部署
 
-详细的部署指南请查看 [部署文档](deploy/DEPLOYMENT.md)
+### 快速部署（推荐）
 
-### 快速部署方式
+一键安装到 Linux 服务器：
 
-#### 使用 systemd（推荐）
 ```bash
-# 复制 service 文件
-sudo cp deploy/legendary-spoon.service /etc/systemd/system/
+# 方法 1：在线安装
+bash <(curl -fsSL https://raw.githubusercontent.com/imbatony/legendary-spoon/main/deploy/quick-install.sh)
 
-# 编辑并修改路径
-sudo nano /etc/systemd/system/legendary-spoon.service
+# 方法 2：克隆后安装
+git clone https://github.com/imbatony/legendary-spoon.git
+cd legendary-spoon
+bash deploy/quick-install.sh
+```
 
-# 启动服务
-sudo systemctl daemon-reload
-sudo systemctl enable legendary-spoon
-sudo systemctl start legendary-spoon
+安装脚本会：
+- ✅ 自动检测并安装 Bun
+- ✅ 克隆项目到指定目录（默认 `/opt/legendary-spoon`）
+- ✅ 安装依赖并初始化数据库
+- ✅ 配置 systemd/PM2/Docker 服务（可选择）
+- ✅ 自动启动并验证服务
+
+### 手动部署方式
+
+#### 使用 systemd（推荐，已自动配置）
+```bash
+# 查看服务状态
+sudo systemctl status legendary-spoon
+
+# 查看日志
+sudo journalctl -u legendary-spoon -f
+
+# 重启服务
+sudo systemctl restart legendary-spoon
 ```
 
 #### 使用 PM2
@@ -81,19 +98,25 @@ pm2 startup
 docker-compose up -d
 ```
 
-### 清理错误安装
+### 故障排查
 
-如果之前的安装失败或创建了错误的目录：
+如果遇到部署问题：
 
 ```bash
-# 使用清理脚本
-bash deploy/cleanup.sh
+# 运行诊断工具
+bash deploy/troubleshooting/diagnose.sh
 
-# 或手动删除错误目录
-sudo rm -rf "INSTALL_DIR=\${INSTALL_DIR:-/opt/legendary-spoon}"
+# 查看快速修复指南
+cat deploy/QUICKFIX.md
+
+# 查看故障排除工具
+ls deploy/troubleshooting/
 ```
 
-详细的故障排查请查看 [部署文档](deploy/DEPLOYMENT.md)
+详细文档：
+- [完整部署指南](deploy/DEPLOYMENT.md)
+- [快速修复指南](deploy/QUICKFIX.md)
+- [故障排除工具](deploy/troubleshooting/README.md)
 
 
 ## 项目结构
