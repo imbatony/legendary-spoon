@@ -27,6 +27,7 @@ export function TodoList({}: TodoListProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [filterCategory, setFilterCategory] = useState<number | null>(null);
   const [filterCompleted, setFilterCompleted] = useState<'all' | 'active' | 'completed'>('all');
 
@@ -38,6 +39,15 @@ export function TodoList({}: TodoListProps) {
     priority: 0,
     due_date: "",
   });
+
+  // 新分类表单状态
+  const [newCategory, setNewCategory] = useState({
+    name: "",
+    color: "#646cff",
+  });
+
+  // 编辑分类状态
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
   // 加载分类
   useEffect(() => {
@@ -134,6 +144,69 @@ export function TodoList({}: TodoListProps) {
     }
   };
 
+  // 分类管理函数
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategory.name.trim()) return;
+
+    try {
+      const response = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newCategory),
+      });
+
+      if (response.ok) {
+        await fetchCategories();
+        setNewCategory({ name: "", color: "#646cff" });
+      } else {
+        const error = await response.text();
+        alert(error);
+      }
+    } catch (error) {
+      console.error("Failed to add category:", error);
+      alert("添加分类失败");
+    }
+  };
+
+  const handleUpdateCategory = async (category: Category) => {
+    try {
+      const response = await fetch(`/api/categories/${category.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: category.name, color: category.color }),
+      });
+
+      if (response.ok) {
+        await fetchCategories();
+        setEditingCategory(null);
+      }
+    } catch (error) {
+      console.error("Failed to update category:", error);
+      alert("更新分类失败");
+    }
+  };
+
+  const handleDeleteCategory = async (id: number) => {
+    if (!confirm("确定要删除这个分类吗？")) return;
+
+    try {
+      const response = await fetch(`/api/categories/${id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        await fetchCategories();
+      } else {
+        const error = await response.text();
+        alert(error);
+      }
+    } catch (error) {
+      console.error("Failed to delete category:", error);
+      alert("删除分类失败");
+    }
+  };
+
   // 筛选待办事项
   const filteredTodos = todos.filter((todo) => {
     if (filterCategory !== null && todo.category_id !== filterCategory) {
@@ -161,10 +234,108 @@ export function TodoList({}: TodoListProps) {
     <div className="todo-list">
       <div className="todo-header">
         <h2>📝 待办事项</h2>
-        <button className="btn-primary" onClick={() => setShowAddForm(!showAddForm)}>
-          {showAddForm ? "取消" : "+ 新建待办"}
-        </button>
+        <div className="header-actions">
+          <button 
+            className="btn-secondary" 
+            onClick={() => setShowCategoryManager(!showCategoryManager)}
+          >
+            🏷️ 管理分类
+          </button>
+          <button className="btn-primary" onClick={() => setShowAddForm(!showAddForm)}>
+            {showAddForm ? "取消" : "+ 新建待办"}
+          </button>
+        </div>
       </div>
+
+      {/* 分类管理器 */}
+      {showCategoryManager && (
+        <div className="category-manager">
+          <h3>📂 分类管理</h3>
+          
+          {/* 添加新分类 */}
+          <form className="category-form" onSubmit={handleAddCategory}>
+            <input
+              type="text"
+              placeholder="新分类名称..."
+              value={newCategory.name}
+              onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+              className="input-text"
+              required
+            />
+            <input
+              type="color"
+              value={newCategory.color}
+              onChange={(e) => setNewCategory({ ...newCategory, color: e.target.value })}
+              className="input-color"
+              title="选择颜色"
+            />
+            <button type="submit" className="btn-primary">添加</button>
+          </form>
+
+          {/* 分类列表 */}
+          <div className="category-list">
+            {categories.map((category) => (
+              <div key={category.id} className="category-item">
+                {editingCategory?.id === category.id ? (
+                  <>
+                    <input
+                      type="text"
+                      value={editingCategory.name}
+                      onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                      className="input-text-small"
+                    />
+                    <input
+                      type="color"
+                      value={editingCategory.color}
+                      onChange={(e) => setEditingCategory({ ...editingCategory, color: e.target.value })}
+                      className="input-color"
+                    />
+                    <button 
+                      className="btn-icon"
+                      onClick={() => handleUpdateCategory(editingCategory)}
+                      title="保存"
+                    >
+                      ✓
+                    </button>
+                    <button 
+                      className="btn-icon"
+                      onClick={() => setEditingCategory(null)}
+                      title="取消"
+                    >
+                      ✕
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span 
+                      className="category-badge"
+                      style={{ backgroundColor: category.color }}
+                    >
+                      {category.name}
+                    </span>
+                    <div className="category-actions">
+                      <button 
+                        className="btn-icon"
+                        onClick={() => setEditingCategory(category)}
+                        title="编辑"
+                      >
+                        ✏️
+                      </button>
+                      <button 
+                        className="btn-icon btn-delete"
+                        onClick={() => handleDeleteCategory(category.id)}
+                        title="删除"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 添加待办事项表单 */}
       {showAddForm && (

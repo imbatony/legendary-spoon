@@ -124,6 +124,58 @@ const server = serve({
         const categories = db.query("SELECT * FROM categories").all();
         return Response.json(categories);
       },
+      async POST(req) {
+        try {
+          const body = await req.json();
+          if (!body.name || !body.name.trim()) {
+            return new Response("分类名称不能为空", { status: 400 });
+          }
+          
+          const result = db.run(
+            "INSERT INTO categories (name, color) VALUES (?, ?)",
+            [body.name.trim(), body.color || '#646cff']
+          );
+          return Response.json({ id: result.lastInsertRowid, ...body });
+        } catch (error) {
+          console.error("Create category error:", error);
+          return new Response("创建分类失败", { status: 500 });
+        }
+      },
+    },
+
+    "/api/categories/:id": {
+      async PUT(req) {
+        try {
+          const id = req.params.id;
+          const body = await req.json();
+          
+          db.run(
+            "UPDATE categories SET name = ?, color = ? WHERE id = ?",
+            [body.name, body.color, id]
+          );
+          return Response.json({ success: true });
+        } catch (error) {
+          console.error("Update category error:", error);
+          return new Response("更新分类失败", { status: 500 });
+        }
+      },
+      async DELETE(req) {
+        try {
+          const id = req.params.id;
+          
+          // 检查是否有待办事项使用此分类
+          const todos = db.query("SELECT COUNT(*) as count FROM todos WHERE category_id = ?").get(id) as { count: number };
+          if (todos.count > 0) {
+            return new Response(`无法删除：还有 ${todos.count} 个待办事项使用此分类`, { status: 400 });
+          }
+          
+          db.run("DELETE FROM categories WHERE id = ?", [id]);
+          return Response.json({ success: true });
+        } catch (error) {
+          console.error("Delete category error:", error);
+          return new Response("删除分类失败", { status: 500 });
+        }
+      },
     },
 
     // Reminders API
