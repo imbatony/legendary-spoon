@@ -45,6 +45,66 @@ const server = serve({
       },
     },
 
+    "/api/todos/:id": {
+      async GET(req) {
+        const id = req.params.id;
+        const todo = db.query("SELECT * FROM todos WHERE id = ?").get(id);
+        if (!todo) {
+          return new Response("Not found", { status: 404 });
+        }
+        return Response.json(todo);
+      },
+      async PUT(req) {
+        const id = req.params.id;
+        const body = await req.json();
+        
+        // 构建更新字段
+        const updates: string[] = [];
+        const values: any[] = [];
+        
+        if (body.title !== undefined) {
+          updates.push("title = ?");
+          values.push(body.title);
+        }
+        if (body.description !== undefined) {
+          updates.push("description = ?");
+          values.push(body.description);
+        }
+        if (body.category_id !== undefined) {
+          updates.push("category_id = ?");
+          values.push(body.category_id);
+        }
+        if (body.completed !== undefined) {
+          updates.push("completed = ?");
+          values.push(body.completed ? 1 : 0);
+        }
+        if (body.priority !== undefined) {
+          updates.push("priority = ?");
+          values.push(body.priority);
+        }
+        if (body.due_date !== undefined) {
+          updates.push("due_date = ?");
+          values.push(body.due_date);
+        }
+        
+        updates.push("updated_at = CURRENT_TIMESTAMP");
+        values.push(id);
+        
+        db.run(
+          `UPDATE todos SET ${updates.join(", ")} WHERE id = ?`,
+          values
+        );
+        
+        const updated = db.query("SELECT * FROM todos WHERE id = ?").get(id);
+        return Response.json(updated);
+      },
+      async DELETE(req) {
+        const id = req.params.id;
+        db.run("DELETE FROM todos WHERE id = ?", [id]);
+        return Response.json({ success: true });
+      },
+    },
+
     // Categories API
     "/api/categories": {
       async GET(req) {

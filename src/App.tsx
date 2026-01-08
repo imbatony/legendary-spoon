@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { APITester } from "./APITester";
+import { TodoList } from "./TodoList";
 import "./index.css";
 
 import logo from "./logo.svg";
-import reactLogo from "./react.svg";
 
 type Tab = "todo" | "files" | "reminders" | "api";
 
@@ -50,8 +50,7 @@ export function App() {
       <main className="content">
         {activeTab === "todo" && (
           <div className="module">
-            <h2>待办事项</h2>
-            <p>功能开发中...</p>
+            <TodoList />
           </div>
         )}
         {activeTab === "files" && (
