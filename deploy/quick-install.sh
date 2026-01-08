@@ -142,25 +142,53 @@ case "$DEPLOY_METHOD" in
         
         echo "Bun 路径: $BUN_PATH"
         
-        # 获取 Bun 的目录，用于 PATH 环境变量
-        BUN_DIR=$(dirname "$BUN_PATH")
+        # 创建启动脚本
+        cat > "$INSTALL_DIR/start.sh" << EOF
+#!/bin/bash
+
+# 设置环境变量
+export NODE_ENV=production
+export PATH="$(dirname "$BUN_PATH"):/usr/local/bin:/usr/bin:/bin"
+
+# 切换到项目目录
+cd "$INSTALL_DIR"
+
+# 启动应用
+exec "$BUN_PATH" run src/index.ts
+EOF
         
-        # 复制服务文件
-        sudo cp deploy/legendary-spoon.service /etc/systemd/system/
+        chmod +x "$INSTALL_DIR/start.sh"
+        echo "✓ 已创建启动脚本: $INSTALL_DIR/start.sh"
         
-        # 替换路径
-        sudo sed -i "s|WorkingDirectory=/path/to/legendary-spoon|WorkingDirectory=$INSTALL_DIR|g" /etc/systemd/system/legendary-spoon.service
-        sudo sed -i "s|ReadWritePaths=/path/to/legendary-spoon/data /path/to/legendary-spoon/uploads|ReadWritePaths=$INSTALL_DIR/data $INSTALL_DIR/uploads|g" /etc/systemd/system/legendary-spoon.service
+        # 创建服务文件
+        cat > /tmp/legendary-spoon.service << EOF
+[Unit]
+Description=legendary-spoon - Personal Toolkit Web Application
+After=network.target
+
+[Service]
+Type=simple
+User=$USER
+WorkingDirectory=$INSTALL_DIR
+ExecStart=/bin/bash $INSTALL_DIR/start.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# 基本安全选项
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
         
-        # 替换用户
-        sudo sed -i "s|User=www-data|User=$USER|g" /etc/systemd/system/legendary-spoon.service
+        # 安装服务文件
+        sudo cp /tmp/legendary-spoon.service /etc/systemd/system/
+        rm /tmp/legendary-spoon.service
         
-        # 替换 Bun 路径（ExecStart 和 PATH）
-        sudo sed -i "s|ExecStart=/usr/local/bin/bun|ExecStart=$BUN_PATH|g" /etc/systemd/system/legendary-spoon.service
-        sudo sed -i "s|Environment=\"PATH=/usr/local/bin:/usr/bin:/bin\"|Environment=\"PATH=$BUN_DIR:/usr/local/bin:/usr/bin:/bin\"|g" /etc/systemd/system/legendary-spoon.service
-        
-        # 确保数据目录存在（解决 NAMESPACE 错误）
-        echo "创建数据目录..."
+        # 确保数据目录存在
         mkdir -p "${INSTALL_DIR}/data"
         mkdir -p "${INSTALL_DIR}/uploads"
         

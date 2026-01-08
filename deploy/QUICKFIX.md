@@ -2,6 +2,10 @@
 
 ## 常见问题和解决方案
 
+> **注意**：从 2026年1月 开始，安装脚本已整合所有修复。正常使用 `bash deploy/quick-install.sh` 即可。
+> 
+> 以下问题及解决方案仅供参考。如遇到特殊情况，可使用 `deploy/troubleshooting/` 目录下的诊断工具。
+
 ### 问题 1：systemd 服务 NAMESPACE 错误
 
 **错误信息**:
@@ -17,19 +21,19 @@ Failed at step NAMESPACE spawning /home/user/.bun/bin/bun
 **解决方案**:
 
 ```bash
-# 方法 1：重新运行安装脚本（推荐）
+# 方法 1：重新安装（推荐）
 cd /opt/legendary-spoon
 git pull
 bash deploy/quick-install.sh
 
-# 方法 2：手动创建目录并重启
+# 方法 2：使用故障排除工具
+sudo bash deploy/troubleshooting/fix-with-wrapper.sh
+
+# 方法 3：手动创建目录
 sudo mkdir -p /opt/legendary-spoon/data
 sudo mkdir -p /opt/legendary-spoon/uploads
 sudo chown -R $USER:$USER /opt/legendary-spoon/data /opt/legendary-spoon/uploads
 sudo systemctl restart legendary-spoon
-
-# 检查状态
-sudo systemctl status legendary-spoon
 ```
 
 ### 问题 2：systemd 服务找不到 Bun 可执行文件
@@ -48,7 +52,7 @@ Failed at step EXEC spawning /home/user/.bun/bin/bun
 
 ```bash
 # 1. 运行详细诊断
-sudo bash deploy/debug-bun.sh
+sudo bash deploy/troubleshooting/debug-bun.sh
 
 # 2. 检查服务文件中是否有 ProtectHome=true
 cat /etc/systemd/system/legendary-spoon.service | grep -E "Protect|ReadWrite"
@@ -57,25 +61,16 @@ cat /etc/systemd/system/legendary-spoon.service | grep -E "Protect|ReadWrite"
 **解决方案**:
 
 ```bash
-# 快速修复（推荐）- 使用包装器脚本方案
+# 快速修复（推荐）
 cd /opt/legendary-spoon
 git pull
-sudo bash deploy/fix-with-wrapper.sh
-```
-
-这个方案会：
-- 创建 `start.sh` 包装脚本
-- 移除 `ProtectHome=true` 等限制
-- 使用 `/bin/bash` 执行包装器（绕过权限问题）
-
-**快速修复（推荐）**:
-
-```bash
-# 运行诊断脚本
-bash deploy/diagnose.sh
-
-# 重新运行安装脚本会自动修复路径
 bash deploy/quick-install.sh
+
+# 使用故障排除工具
+sudo bash deploy/troubleshooting/fix-with-wrapper.sh
+
+# 或运行诊断
+sudo bash deploy/troubleshooting/debug-bun.sh
 ```
 
 ### 问题 3：安装脚本创建了错误的目录
@@ -87,12 +82,9 @@ bash deploy/quick-install.sh
 ### 方法 1: 使用清理脚本（最简单）
 
 ```bash
-# 下载并运行清理脚本
-curl -fsSL https://raw.githubusercontent.com/imbatony/legendary-spoon/main/deploy/cleanup.sh | bash
-
-# 或者如果已经克隆了项目
+# 如果已经克隆了项目
 cd legendary-spoon
-bash deploy/cleanup.sh
+bash deploy/troubleshooting/cleanup.sh
 ```
 
 ### 方法 2: 手动清理
@@ -151,11 +143,25 @@ find / -name "*legendary-spoon*" 2>/dev/null
 
 ## 🛡️ 预防措施
 
-使用最新版本的脚本，这些问题已经修复：
+使用最新版本的安装脚本 `deploy/quick-install.sh`，所有已知问题已修复：
 - ✅ 正确的变量展开
+- ✅ 自动创建 start.sh 包装脚本
+- ✅ 移除了导致问题的安全限制
 - ✅ 权限检查和处理
 - ✅ 更好的错误提示
 - ✅ 安装前目录验证
+
+## 📋 故障排除工具
+
+所有诊断和修复工具已整理到 `deploy/troubleshooting/` 目录：
+
+- `debug-bun.sh` - 详细诊断 Bun 可执行文件问题
+- `fix-bun-path.sh` - 自动修复 Bun 路径
+- `fix-with-wrapper.sh` - 使用包装器解决权限问题
+- `cleanup.sh` - 清理错误的安装目录
+- `diagnose.sh` - 全面系统诊断
+
+查看详情：`deploy/troubleshooting/README.md`
 
 ## 💡 提示
 
@@ -173,6 +179,6 @@ sudo chmod -R 755 /path/to/directory
 
 ## 📞 需要帮助？
 
-查看完整文档：
-- [部署指南](DEPLOYMENT.md)
-- [GitHub Issues](https://github.com/imbatony/legendary-spoon/issues)
+1. 先运行诊断：`bash deploy/troubleshooting/diagnose.sh`
+2. 查看完整文档：[DEPLOYMENT.md](DEPLOYMENT.md)
+3. 提交问题：[GitHub Issues](https://github.com/imbatony/legendary-spoon/issues)
