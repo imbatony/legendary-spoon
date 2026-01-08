@@ -10,15 +10,29 @@ interface FileInfo {
   download_count: number;
 }
 
+interface StorageInfo {
+  disk: {
+    total: number;
+    used: number;
+    available: number;
+  };
+  uploads: {
+    size: number;
+    count: { count: number };
+  };
+}
+
 export function FileTransfer() {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
 
   useEffect(() => {
     fetchFiles();
+    fetchStorageInfo();
   }, []);
 
   const fetchFiles = async () => {
@@ -31,6 +45,16 @@ export function FileTransfer() {
       console.error("Failed to fetch files:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStorageInfo = async () => {
+    try {
+      const response = await fetch("/api/files/storage");
+      const data = await response.json();
+      setStorageInfo(data);
+    } catch (error) {
+      console.error("Failed to fetch storage info:", error);
     }
   };
 
@@ -65,6 +89,7 @@ export function FileTransfer() {
 
       if (response.ok) {
         await fetchFiles();
+        await fetchStorageInfo(); // 刷新存储信息
         setSelectedFile(null);
         // 重置文件输入
         const fileInput = document.getElementById("file-input") as HTMLInputElement;
@@ -115,6 +140,7 @@ export function FileTransfer() {
 
       if (response.ok) {
         await fetchFiles();
+        await fetchStorageInfo(); // 刷新存储信息
       } else {
         alert("删除失败，请重试");
       }
@@ -127,9 +153,14 @@ export function FileTransfer() {
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+  };
+
+  const formatPercentage = (used: number, total: number): string => {
+    if (total === 0) return "0%";
+    return ((used / total) * 100).toFixed(1) + "%";
   };
 
   const formatDate = (dateString: string): string => {
@@ -165,6 +196,68 @@ export function FileTransfer() {
           <span>总大小: {formatFileSize(files.reduce((sum, f) => sum + f.file_size, 0))}</span>
         </div>
       </div>
+
+      {/* 存储容量信息 */}
+      {storageInfo && (
+        <div className="storage-info">
+          <div className="storage-section">
+            <div className="storage-label">
+              <span>💾 磁盘存储</span>
+              <span className="storage-usage">
+                {formatFileSize(storageInfo.disk.used)} / {formatFileSize(storageInfo.disk.total)}
+                <span className="storage-percentage">
+                  ({formatPercentage(storageInfo.disk.used, storageInfo.disk.total)})
+                </span>
+              </span>
+            </div>
+            <div className="storage-bar">
+              <div
+                className="storage-bar-fill"
+                style={{
+                  width: formatPercentage(storageInfo.disk.used, storageInfo.disk.total),
+                  backgroundColor: 
+                    (storageInfo.disk.used / storageInfo.disk.total) > 0.9 ? '#dc3545' :
+                    (storageInfo.disk.used / storageInfo.disk.total) > 0.7 ? '#ffc107' : '#28a745'
+                }}
+              />
+            </div>
+            <div className="storage-details">
+              <span className="storage-detail">
+                可用: {formatFileSize(storageInfo.disk.available)}
+              </span>
+            </div>
+          </div>
+
+          <div className="storage-section">
+            <div className="storage-label">
+              <span>📤 上传文件</span>
+              <span className="storage-usage">
+                {formatFileSize(storageInfo.uploads.size)}
+                <span className="storage-count">
+                  ({storageInfo.uploads.count.count} 个文件)
+                </span>
+              </span>
+            </div>
+            <div className="storage-bar">
+              <div
+                className="storage-bar-fill storage-bar-uploads"
+                style={{
+                  width: storageInfo.disk.total > 0 
+                    ? formatPercentage(storageInfo.uploads.size, storageInfo.disk.total)
+                    : '0%'
+                }}
+              />
+            </div>
+            <div className="storage-details">
+              <span className="storage-detail">
+                占磁盘: {storageInfo.disk.total > 0 
+                  ? formatPercentage(storageInfo.uploads.size, storageInfo.disk.total)
+                  : '0%'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 上传区域 */}
       <form className="file-upload-form" onSubmit={handleUpload}>

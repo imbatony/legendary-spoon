@@ -1,9 +1,13 @@
 import { serve } from "bun";
 import index from "./index.html";
 import db from "../server/db";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, statSync } from "fs";
 import { join } from "path";
 import { unlink } from "fs/promises";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 // 确保上传目录存在
 const UPLOAD_DIR = join(process.cwd(), "uploads");
@@ -143,6 +147,75 @@ const server = serve({
       async GET(req) {
         const files = db.query("SELECT * FROM files ORDER BY upload_date DESC").all();
         return Response.json(files);
+      },
+    },
+
+    "/api/files/storage": {
+      async GET(req) {
+        try {
+          // 获取磁盘使用情况
+          let diskInfo = { total: 0, used: 0, available: 0 };
+          
+          // 根据操作系统获取磁盘信息
+          const isWindows = process.platform === "win32";
+          
+          if (isWindows) {
+            // Windows: 使用 wmic 或 fsutil
+            try {
+              const drive = process.cwd().substring(0, 2); // 如 "C:"
+              const { stdout } = await execAsync(`wmic logicaldisk where "DeviceID='${drive}'" get Size,FreeSpace /format:list`);
+              const lines = stdout.split('\n').filter(line => line.trim());
+              
+              let freeSpace = 0;
+              let totalSpace = 0;
+              
+              for (const line of lines) {
+                if (line.startsWith('FreeSpace=')) {
+                  freeSpace = parseInt(line.split('=')[1]);
+                } else if (line.startsWith('Size=')) {
+                  totalSpace = parseInt(line.split('=')[1]);
+                }
+              }
+              
+              diskInfo = {
+                total: totalSpace,
+                used: totalSpace - freeSpace,
+                available: freeSpace
+              };
+            } catch (error) {
+              console.error("Failed to get Windows disk info:", error);
+            }
+          } else {
+            // Linux/macOS: 使用 df 命令
+            try {
+              const { stdout } = await execAsync(`df -k "${process.cwd()}" | tail -1`);
+              const parts = stdout.trim().split(/\s+/);
+              // df 输出格式: Filesystem 1K-blocks Used Available Use% Mounted
+              const total = parseInt(parts[1]) * 1024; // 转换为字节
+              const used = parseInt(parts[2]) * 1024;
+              const available = parseInt(parts[3]) * 1024;
+              
+              diskInfo = { total, used, available };
+            } catch (error) {
+              console.error("Failed to get disk info:", error);
+            }
+          }
+
+          // 计算 uploads 目录的总大小
+          const files = db.query("SELECT SUM(file_size) as total FROM files").get() as { total: number | null };
+          const uploadsSize = files.total || 0;
+
+          return Response.json({
+            disk: diskInfo,
+            uploads: {
+              size: uploadsSize,
+              count: db.query("SELECT COUNT(*) as count FROM files").get() as { count: number }
+            }
+          });
+        } catch (error) {
+          console.error("Storage info error:", error);
+          return Response.json({ error: "Failed to get storage info" }, { status: 500 });
+        }
       },
     },
 
