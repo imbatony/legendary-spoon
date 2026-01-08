@@ -43,6 +43,44 @@ bun start
 bun run db:init
 ```
 
+### 添加测试数据
+```bash
+bun run db:seed
+```
+
+## 生产部署
+
+详细的部署指南请查看 [部署文档](deploy/DEPLOYMENT.md)
+
+### 快速部署方式
+
+#### 使用 systemd（推荐）
+```bash
+# 复制 service 文件
+sudo cp deploy/legendary-spoon.service /etc/systemd/system/
+
+# 编辑并修改路径
+sudo nano /etc/systemd/system/legendary-spoon.service
+
+# 启动服务
+sudo systemctl daemon-reload
+sudo systemctl enable legendary-spoon
+sudo systemctl start legendary-spoon
+```
+
+#### 使用 PM2
+```bash
+npm install -g pm2
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup
+```
+
+#### 使用 Docker
+```bash
+docker-compose up -d
+```
+
 ## 项目结构
 ```
 ├── src/

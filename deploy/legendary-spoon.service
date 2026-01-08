@@ -1,0 +1,25 @@
+[Unit]
+Description=legendary-spoon - Personal Toolkit Web Application
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/path/to/legendary-spoon
+Environment="NODE_ENV=production"
+ExecStart=/usr/local/bin/bun run src/index.ts
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=legendary-spoon
+
+# 安全选项
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/path/to/legendary-spoon/data /path/to/legendary-spoon/uploads
+
+[Install]
+WantedBy=multi-user.target

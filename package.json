@@ -9,7 +9,9 @@
     "build": "bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
     "start": "NODE_ENV=production bun src/index.ts",
     "db:init": "bun run server/db/init.ts",
-    "db:seed": "bun run server/db/seed.ts"
+    "db:seed": "bun run server/db/seed.ts",
+    "deploy": "bash deploy/deploy.sh",
+    "logs": "sudo journalctl -u legendary-spoon -f"
   },
   "dependencies": {
     "react": "^19",
