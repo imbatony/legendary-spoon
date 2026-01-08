@@ -53,7 +53,7 @@ SERVICE_FILE="/etc/systemd/system/legendary-spoon.service"
 # 备份
 cp "$SERVICE_FILE" "${SERVICE_FILE}.backup.wrapper.$(date +%Y%m%d%H%M%S)"
 
-# 创建新的服务文件
+# 创建新的服务文件（移除所有阻止访问 /home 的限制）
 cat > "$SERVICE_FILE" << EOF
 [Unit]
 Description=legendary-spoon - Personal Toolkit Web Application
@@ -69,7 +69,7 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 
-# 安全选项（简化配置避免 namespace 问题）
+# 基本安全选项（不限制文件系统访问）
 NoNewPrivileges=true
 PrivateTmp=true
 
