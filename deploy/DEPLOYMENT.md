@@ -262,8 +262,51 @@ sudo ufw enable
 
 ## 故障排查
 
+### 常见问题
+
+#### 1. 安装脚本创建了错误的目录名
+
+**问题**: 目录名为 `INSTALL_DIR=${INSTALL_DIR:-/opt/legendary-spoon}` 而不是实际路径
+
+**原因**: 旧版本安装脚本的变量展开问题
+
+**解决方案**:
+
 ```bash
-# 检查端口占用
+# 方法 1: 使用清理脚本（推荐）
+bash deploy/cleanup.sh
+
+# 方法 2: 手动删除
+rm -rf "INSTALL_DIR=\${INSTALL_DIR:-/opt/legendary-spoon}"
+# 如果需要 sudo 权限
+sudo rm -rf "INSTALL_DIR=\${INSTALL_DIR:-/opt/legendary-spoon}"
+
+# 方法 3: 删除当前目录下的错误目录
+rm -rf './INSTALL_DIR=$'{INSTALL_DIR:-/opt/legendary-spoon}
+```
+
+然后使用最新的安装脚本重新安装：
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/imbatony/legendary-spoon/main/deploy/quick-install.sh)
+```
+
+#### 2. 权限被拒绝
+
+**问题**: `Permission denied` 错误
+
+**解决方案**:
+```bash
+# 检查文件权限
+ls -la /path/to/legendary-spoon
+
+# 更改所有者
+sudo chown -R $USER:$USER /path/to/legendary-spoon
+
+# 或使用 sudo 运行清理
+sudo rm -rf /path/to/problematic/directory
+```
+
+#### 3. 检查端口占用
 sudo lsof -i :3000
 sudo netstat -tuln | grep 3000
 

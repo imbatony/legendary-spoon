@@ -67,12 +67,34 @@ if [ -d "$INSTALL_DIR" ]; then
         exit 1
     fi
     echo "🗑️  删除旧目录..."
-    rm -rf "$INSTALL_DIR"
+    if [ -w "$INSTALL_DIR" ]; then
+        rm -rf "$INSTALL_DIR"
+    else
+        echo "需要管理员权限删除目录..."
+        sudo rm -rf "$INSTALL_DIR"
+    fi
+fi
+
+# 创建父目录（如果需要）
+PARENT_DIR=$(dirname "$INSTALL_DIR")
+if [ ! -d "$PARENT_DIR" ]; then
+    echo "📁 创建父目录..."
+    if [ -w "$(dirname "$PARENT_DIR")" ]; then
+        mkdir -p "$PARENT_DIR"
+    else
+        sudo mkdir -p "$PARENT_DIR"
+        sudo chown $USER:$USER "$PARENT_DIR"
+    fi
 fi
 
 # 创建安装目录
 echo "📁 创建安装目录..."
-mkdir -p "$INSTALL_DIR"
+if [ -w "$PARENT_DIR" ]; then
+    mkdir -p "$INSTALL_DIR"
+else
+    sudo mkdir -p "$INSTALL_DIR"
+    sudo chown $USER:$USER "$INSTALL_DIR"
+fi
 
 # 克隆项目
 echo "📥 克隆项目..."

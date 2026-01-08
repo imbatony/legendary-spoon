@@ -81,6 +81,21 @@ pm2 startup
 docker-compose up -d
 ```
 
+### 清理错误安装
+
+如果之前的安装失败或创建了错误的目录：
+
+```bash
+# 使用清理脚本
+bash deploy/cleanup.sh
+
+# 或手动删除错误目录
+sudo rm -rf "INSTALL_DIR=\${INSTALL_DIR:-/opt/legendary-spoon}"
+```
+
+详细的故障排查请查看 [部署文档](deploy/DEPLOYMENT.md)
+
+
 ## 项目结构
 ```
 ├── src/
