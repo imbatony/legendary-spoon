@@ -36,33 +36,57 @@ sudo systemctl status legendary-spoon
 
 **错误信息**:
 ```
-Failed to locate executable /home/user/.bun/bin/bun
+Failed to locate executable /home/user/.bun/bin/bun: No such file or directory
 Failed at step EXEC spawning /home/user/.bun/bin/bun
 ```
 
-**原因**: Bun 路径配置不正确或 systemd 无法访问用户目录
+**原因**: Bun 路径配置不正确
+
+**诊断步骤**:
+
+```bash
+# 1. 确认 Bun 安装位置
+which bun
+
+# 2. 检查 Bun 是否可执行
+ls -la $(which bun)
+
+# 3. 测试 Bun 是否工作
+bun --version
+
+# 4. 检查服务文件中的路径
+cat /etc/systemd/system/legendary-spoon.service | grep ExecStart
+```
 
 **解决方案**:
 
 ```bash
-# 1. 检查 Bun 实际路径
-which bun
+# 快速修复（推荐）- 自动检测并修复 Bun 路径
+cd /opt/legendary-spoon
+git pull
+sudo bash deploy/fix-bun-path.sh
+```
 
-# 2. 编辑服务文件
+**手动修复**:
+
+```bash
+# 获取正确的 Bun 路径
+BUN_PATH=$(which bun)
+echo "Bun 路径: $BUN_PATH"
+
+# 编辑服务文件
 sudo nano /etc/systemd/system/legendary-spoon.service
 
-# 3. 修改 ExecStart 行为实际的 Bun 路径
+# 修改 ExecStart 行为实际路径
 # 例如: ExecStart=/home/azureuser/.bun/bin/bun run src/index.ts
+# 或者: ExecStart=/usr/local/bin/bun run src/index.ts
 
-# 4. 确保 PATH 环境变量包含 Bun 目录
-# 添加或修改这一行:
+# 同时更新 PATH 环境变量
 # Environment="PATH=/home/azureuser/.bun/bin:/usr/local/bin:/usr/bin:/bin"
 
-# 5. 重载并重启服务
+# 重载并重启服务
 sudo systemctl daemon-reload
 sudo systemctl restart legendary-spoon
-
-# 6. 检查状态
 sudo systemctl status legendary-spoon
 ```
 
