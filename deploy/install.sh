@@ -36,17 +36,17 @@ fi
 
 # 询问安装路径
 read -p "请输入安装路径 [默认: /opt/legendary-spoon]: " INSTALL_DIR
-INSTALL_DIR=${INSTALL_DIR:-/opt/legendary-spoon}
+INSTALL_DIR="${INSTALL_DIR:-/opt/legendary-spoon}"
 
 # 创建安装目录
 echo "📁 创建安装目录: $INSTALL_DIR"
-sudo mkdir -p $INSTALL_DIR
-sudo chown $USER:$USER $INSTALL_DIR
+sudo mkdir -p "$INSTALL_DIR"
+sudo chown $USER:$USER "$INSTALL_DIR"
 
 # 克隆项目
 echo "📥 克隆项目..."
-git clone https://github.com/imbatony/legendary-spoon.git $INSTALL_DIR
-cd $INSTALL_DIR
+git clone https://github.com/imbatony/legendary-spoon.git "$INSTALL_DIR"
+cd "$INSTALL_DIR"
 
 # 安装依赖
 echo "📦 安装依赖..."
@@ -74,7 +74,7 @@ case $DEPLOY_METHOD in
         sudo cp deploy/legendary-spoon.service /etc/systemd/system/
         sudo sed -i "s|/path/to/legendary-spoon|$INSTALL_DIR|g" /etc/systemd/system/legendary-spoon.service
         sudo sed -i "s|User=www-data|User=$USER|g" /etc/systemd/system/legendary-spoon.service
-        BUNA_PATH=$(which bun)
+        BUN_PATH=$(which bun)
         sudo sed -i "s|/usr/local/bin/bun|$BUN_PATH|g" /etc/systemd/system/legendary-spoon.service
         
         sudo systemctl daemon-reload

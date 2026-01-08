@@ -5,15 +5,22 @@
 
 set -e
 
-ENV=${1:-production}
-PROJECT_DIR="/opt/legendary-spoon"
+ENV="${1:-production}"
+PROJECT_DIR="${PROJECT_DIR:-/opt/legendary-spoon}"
 SERVICE_NAME="legendary-spoon"
 
 echo "🚀 开始部署 legendary-spoon (环境: $ENV)"
 
+# 检查项目目录是否存在
+if [ ! -d "$PROJECT_DIR" ]; then
+    echo "❌ 项目目录不存在: $PROJECT_DIR"
+    echo "请设置环境变量 PROJECT_DIR 或修改脚本中的路径"
+    exit 1
+fi
+
 # 1. 拉取最新代码
 echo "📥 拉取最新代码..."
-cd $PROJECT_DIR
+cd "$PROJECT_DIR"
 git pull origin main
 
 # 2. 安装依赖
