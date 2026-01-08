@@ -14,12 +14,9 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 
-# 安全选项
+# 安全选项（简化配置避免 namespace 问题）
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/path/to/legendary-spoon/data /path/to/legendary-spoon/uploads
 
 [Install]
 WantedBy=multi-user.target

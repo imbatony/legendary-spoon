@@ -159,6 +159,11 @@ case "$DEPLOY_METHOD" in
         sudo sed -i "s|ExecStart=/usr/local/bin/bun|ExecStart=$BUN_PATH|g" /etc/systemd/system/legendary-spoon.service
         sudo sed -i "s|Environment=\"PATH=/usr/local/bin:/usr/bin:/bin\"|Environment=\"PATH=$BUN_DIR:/usr/local/bin:/usr/bin:/bin\"|g" /etc/systemd/system/legendary-spoon.service
         
+        # 确保数据目录存在（解决 NAMESPACE 错误）
+        echo "创建数据目录..."
+        mkdir -p "${INSTALL_DIR}/data"
+        mkdir -p "${INSTALL_DIR}/uploads"
+        
         # 重载并启动服务
         sudo systemctl daemon-reload
         sudo systemctl enable legendary-spoon

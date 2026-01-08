@@ -2,7 +2,37 @@
 
 ## 常见问题和解决方案
 
-### 问题 1：systemd 服务找不到 Bun 可执行文件
+### 问题 1：systemd 服务 NAMESPACE 错误
+
+**错误信息**:
+```
+Failed to set up mount namespacing: /run/systemd/unit-root/opt/legendary-spoon/data: No such file or directory
+Failed at step NAMESPACE spawning /home/user/.bun/bin/bun
+```
+
+**原因**: 
+1. `data` 或 `uploads` 目录不存在
+2. systemd 的 `ProtectSystem=strict` 和 `ReadWritePaths` 配置冲突
+
+**解决方案**:
+
+```bash
+# 方法 1：重新运行安装脚本（推荐）
+cd /opt/legendary-spoon
+git pull
+bash deploy/quick-install.sh
+
+# 方法 2：手动创建目录并重启
+sudo mkdir -p /opt/legendary-spoon/data
+sudo mkdir -p /opt/legendary-spoon/uploads
+sudo chown -R $USER:$USER /opt/legendary-spoon/data /opt/legendary-spoon/uploads
+sudo systemctl restart legendary-spoon
+
+# 检查状态
+sudo systemctl status legendary-spoon
+```
+
+### 问题 2：systemd 服务找不到 Bun 可执行文件
 
 **错误信息**:
 ```
@@ -46,7 +76,7 @@ bash deploy/diagnose.sh
 bash deploy/quick-install.sh
 ```
 
-### 问题 2：安装脚本创建了错误的目录
+### 问题 3：安装脚本创建了错误的目录
 
 **问题**: 目录名为 `INSTALL_DIR=${INSTALL_DIR:-/opt/legendary-spoon}` 而不是实际路径
 
