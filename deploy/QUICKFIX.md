@@ -1,11 +1,54 @@
 # 快速修复指南
 
-## 问题：安装脚本创建了错误的目录
+## 常见问题和解决方案
 
-如果您遇到类似这样的错误目录：
+### 问题 1：systemd 服务找不到 Bun 可执行文件
+
+**错误信息**:
 ```
-INSTALL_DIR=${INSTALL_DIR:-/opt/legendary-spoon}
+Failed to locate executable /home/user/.bun/bin/bun
+Failed at step EXEC spawning /home/user/.bun/bin/bun
 ```
+
+**原因**: Bun 路径配置不正确或 systemd 无法访问用户目录
+
+**解决方案**:
+
+```bash
+# 1. 检查 Bun 实际路径
+which bun
+
+# 2. 编辑服务文件
+sudo nano /etc/systemd/system/legendary-spoon.service
+
+# 3. 修改 ExecStart 行为实际的 Bun 路径
+# 例如: ExecStart=/home/azureuser/.bun/bin/bun run src/index.ts
+
+# 4. 确保 PATH 环境变量包含 Bun 目录
+# 添加或修改这一行:
+# Environment="PATH=/home/azureuser/.bun/bin:/usr/local/bin:/usr/bin:/bin"
+
+# 5. 重载并重启服务
+sudo systemctl daemon-reload
+sudo systemctl restart legendary-spoon
+
+# 6. 检查状态
+sudo systemctl status legendary-spoon
+```
+
+**快速修复（推荐）**:
+
+```bash
+# 运行诊断脚本
+bash deploy/diagnose.sh
+
+# 重新运行安装脚本会自动修复路径
+bash deploy/quick-install.sh
+```
+
+### 问题 2：安装脚本创建了错误的目录
+
+**问题**: 目录名为 `INSTALL_DIR=${INSTALL_DIR:-/opt/legendary-spoon}` 而不是实际路径
 
 ## 🔧 解决方案
 

@@ -133,6 +133,18 @@ case "$DEPLOY_METHOD" in
         echo ""
         echo "📝 配置 systemd 服务..."
         
+        # 获取 Bun 的完整路径
+        BUN_PATH=$(which bun)
+        if [ -z "$BUN_PATH" ]; then
+            echo "❌ 无法找到 Bun 可执行文件"
+            exit 1
+        fi
+        
+        echo "Bun 路径: $BUN_PATH"
+        
+        # 获取 Bun 的目录，用于 PATH 环境变量
+        BUN_DIR=$(dirname "$BUN_PATH")
+        
         # 复制服务文件
         sudo cp deploy/legendary-spoon.service /etc/systemd/system/
         
@@ -143,9 +155,9 @@ case "$DEPLOY_METHOD" in
         # 替换用户
         sudo sed -i "s|User=www-data|User=$USER|g" /etc/systemd/system/legendary-spoon.service
         
-        # 替换 Bun 路径
-        BUN_PATH=$(which bun)
+        # 替换 Bun 路径（ExecStart 和 PATH）
         sudo sed -i "s|ExecStart=/usr/local/bin/bun|ExecStart=$BUN_PATH|g" /etc/systemd/system/legendary-spoon.service
+        sudo sed -i "s|Environment=\"PATH=/usr/local/bin:/usr/bin:/bin\"|Environment=\"PATH=$BUN_DIR:/usr/local/bin:/usr/bin:/bin\"|g" /etc/systemd/system/legendary-spoon.service
         
         # 重载并启动服务
         sudo systemctl daemon-reload

@@ -7,12 +7,12 @@ Type=simple
 User=www-data
 WorkingDirectory=/path/to/legendary-spoon
 Environment="NODE_ENV=production"
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
 ExecStart=/usr/local/bin/bun run src/index.ts
 Restart=always
 RestartSec=10
-StandardOutput=syslog
-StandardError=syslog
-SyslogIdentifier=legendary-spoon
+StandardOutput=journal
+StandardError=journal
 
 # 安全选项
 NoNewPrivileges=true
