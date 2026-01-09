@@ -7,7 +7,9 @@ legendary-spoon 是一个基于 Bun + React + SQLite 的全栈 Web 应用，提�
 - **运行时**: Bun (最新版本)
 - **前端框架**: React 19 + TypeScript
 - **后端**: Bun Server (内置 HTTP 服务器)
-- **数据库**: SQLite (使用 bun:sqlite)
+- **数据库**: 
+  - SQLite (默认，使用 bun:sqlite)
+  - Supabase (可选，PostgreSQL)
 - **构建工具**: Bun 内置构建工具
 - **样式**: 原生 CSS
 
@@ -31,10 +33,33 @@ legendary-spoon 是一个基于 Bun + React + SQLite 的全栈 Web 应用，提�
 - Props 接口命名：`ComponentNameProps`
 
 ### 数据库
-- 使用 `bun:sqlite` 模块
-- SQL 使用参数化查询防止注入
-- 表名使用小写和下划线
-- 启用外键约束
+- 使用数据库抽象层，不直接编写 SQL
+- 通过 `db` 对象调用适配器方法
+- 支持 SQLite (默认) 和 Supabase
+- 所有数据库操作返回 Promise
+
+## 数据库架构
+
+### 抽象层设计
+项目使用适配器模式支持多种数据库后端：
+
+```
+server/db/
+├── types.ts           # 数据库接口和类型定义
+├── index.ts           # 数据库工厂（选择适配器）
+└── adapters/
+    ├── sqlite.ts      # SQLite 适配器
+    └── supabase.ts    # Supabase 适配器
+```
+
+### 数据库配置
+通过环境变量 `DB_TYPE` 选择数据库：
+- `sqlite` (默认) - 使用本地 SQLite 数据库
+- `supabase` - 使用 Supabase PostgreSQL
+
+Supabase 需要额外配置：
+- `SUPABASE_URL` - Supabase 项目 URL
+- `SUPABASE_KEY` - Supabase 匿名密钥
 
 ### API 路由
 - RESTful 风格
@@ -90,18 +115,35 @@ legendary-spoon 是一个基于 Bun + React + SQLite 的全栈 Web 应用，提�
 - `index.css` - 全局样式
 
 ### server/ (后端专用)
-- `db/index.ts` - 数据库连接
-- `db/init.ts` - 数据库初始化脚本
+- `db/index.ts` - 数据库工厂
+- `db/types.ts` - 数据库接口定义
+- `db/init.ts` - SQLite 初始化脚本
+- `db/supabase-migration.sql` - Supabase 迁移脚本
+- `db/adapters/sqlite.ts` - SQLite 适配器
+- `db/adapters/supabase.ts` - Supabase 适配器
+使用数据库适配器而非直接 SQL：
 
-## 编码建议
-
-### 创建新的 API 路由时
 ```typescript
 "/api/resource": {
   async GET(req) {
-    const data = db.query("SELECT * FROM table").all();
+    const data = await db.getAllResources();
     return Response.json(data);
   },
+  async POST(req) {
+    const body = await req.json();
+    const item = await db.createResource(body);
+    return Response.json(item);
+  },
+  async PUT(req) {
+    const id = parseInt(req.params.id);
+    const body = await req.json();
+    const updated = await db.updateResource(id, body);
+    return Response.json(updated);
+  },
+  async DELETE(req) {
+    const id = parseInt(req.params.id);
+    await db.deleteResource(id);
+    return Response.json({ success: true
   async POST(req) {
     const body = await req.json();
     const result = db.run("INSERT INTO table (...) VALUES (?)", [values]);
@@ -114,22 +156,48 @@ legendary-spoon 是一个基于 Bun + React + SQLite 的全栈 Web 应用，提�
 ```typescript
 interface ComponentProps {
   // props 定义
-}
+}操作
+使用抽象层方法，而非直接 SQL：
 
-export function Component({ prop }: ComponentProps) {
-  const [state, setState] = useState<Type>(initialValue);
-  
-  return (
-    <div className="component">
-      {/* JSX */}
-    </div>
-  );
-}
+```typescript
+// 查询所有
+const todos = await db.getAllTodos();
+
+// 查询单个
+const todo = await db.getTodoById(id);
+
+// 创建
+const newTodo = await db.createTodo({
+  title: "标题",
+  description: "描述",
+  category_id: 1,
+  priority: 1,
+  due_date: "2024-12-31"
+});
+
+//数据库使用适配器模式，不直接编写 SQL
+- 默认使用 SQLite，可通过环境变量切换到 Supabase
+- 开发时使用 `bun --hot` 启用热重载
+- 静态资源直接 import（如 SVG）
+- 环境变量使用 `process.env`
+- API 响应统一使用 `Response.json()`
+- 所有数据库操作都是异步的（返回 Promise）
+
+// 删除
+await db.deleteTodo(id);
+
+// 获取统计信息
+const count = await db.getCategoryTodoCount(categoryId);
+const totalSize = await db.getTotalFileSize();
 ```
 
-### 数据库查询
-```typescript
-// 查询多条
+### 扩展数据库适配器
+如需添加新的数据库操作：
+
+1. 在 `server/db/types.ts` 中的 `DatabaseAdapter` 接口添加方法定义
+2. 在 `server/db/adapters/sqlite.ts` 中实现 SQLite 版本
+3. 在 `server/db/adapters/supabase.ts` 中实现 Supabase 版本
+4. TypeScript 会确保两个适配器都正确实现了接口查询多条
 const items = db.query("SELECT * FROM table WHERE condition = ?").all(value);
 
 // 查询单条

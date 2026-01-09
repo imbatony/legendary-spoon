@@ -12,8 +12,45 @@ legendary-spoon 是一个专为我自己设计的一个网页版（自适应屏�
 - **运行时**: Bun
 - **前端**: React 19
 - **后端**: Bun Server (内置 HTTP 服务器)
-- **数据库**: SQLite
+- **数据库**: SQLite (默认) / Supabase (可选)
 - **语言**: TypeScript
+
+## 数据库配置
+
+本项目支持两种数据库后端：
+
+### SQLite (默认)
+无需额外配置，开箱即用。数据存储在 `data/mytools.db` 文件中。
+
+### Supabase (可选)
+如需使用 Supabase PostgreSQL 数据库：
+
+1. 创建 Supabase 项目：https://supabase.com
+2. 复制环境变量配置文件：
+   ```bash
+   cp .env.example .env
+   ```
+3. 编辑 `.env` 文件，设置数据库类型和 Supabase 配置：
+   ```bash
+   DB_TYPE=supabase
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_KEY=your-anon-key
+   ```
+4. 在 Supabase SQL Editor 中运行迁移脚本：
+   ```bash
+   cat server/db/supabase-migration.sql
+   ```
+5. 启动应用即可自动连接到 Supabase
+
+### 切换数据库
+只需修改 `.env` 文件中的 `DB_TYPE` 变量即可：
+```bash
+# 使用 SQLite
+DB_TYPE=sqlite
+
+# 使用 Supabase
+DB_TYPE=supabase
+```
 
 ## 开发指南
 
@@ -154,8 +191,14 @@ crontab -e
 │   └── *.svg           # 静态资源
 ├── server/
 │   └── db/             # 数据库相关文件
-│       ├── index.ts    # 数据库连接
-│       └── init.ts     # 数据库初始化脚本
+│       ├── index.ts    # 数据库工厂（选择适配器）
+│       ├── types.ts    # 数据库接口定义
+│       ├── init.ts     # SQLite 初始化脚本
+│       ├── supabase-migration.sql  # Supabase 迁移脚本
+│       └── adapters/   # 数据库适配器
+│           ├── sqlite.ts    # SQLite 适配器
+│           └── supabase.ts  # Supabase 适配器
+├── .env.example        # 环境变量示例
 ├── package.json        # 依赖和脚本
 ├── tsconfig.json       # TypeScript 配置
 ├── bunfig.toml         # Bun 配置

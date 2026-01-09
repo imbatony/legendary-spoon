@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "react": "^19",
-    "react-dom": "^19"
+    "react-dom": "^19",
+    "@supabase/supabase-js": "^2"
   },
   "devDependencies": {
     "@types/react": "^19",
