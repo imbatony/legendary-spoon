@@ -45,75 +45,34 @@ const server = serve({
     // TODO API
     "/api/todos": {
       async GET(req) {
-        const todos = db.query("SELECT * FROM todos ORDER BY created_at DESC").all();
+        const todos = await db.getAllTodos();
         return Response.json(todos);
       },
       async POST(req) {
         const body = await req.json();
-        const result = db.run(
-          "INSERT INTO todos (title, description, category_id, priority, due_date) VALUES (?, ?, ?, ?, ?)",
-          [body.title, body.description, body.category_id, body.priority || 0, body.due_date]
-        );
-        return Response.json({ id: result.lastInsertRowid, ...body });
+        const todo = await db.createTodo(body);
+        return Response.json(todo);
       },
     },
 
     "/api/todos/:id": {
       async GET(req) {
-        const id = req.params.id;
-        const todo = db.query("SELECT * FROM todos WHERE id = ?").get(id);
+        const id = parseInt(req.params.id);
+        const todo = await db.getTodoById(id);
         if (!todo) {
           return new Response("Not found", { status: 404 });
         }
         return Response.json(todo);
       },
       async PUT(req) {
-        const id = req.params.id;
+        const id = parseInt(req.params.id);
         const body = await req.json();
-        
-        // 构建更新字段
-        const updates: string[] = [];
-        const values: any[] = [];
-        
-        if (body.title !== undefined) {
-          updates.push("title = ?");
-          values.push(body.title);
-        }
-        if (body.description !== undefined) {
-          updates.push("description = ?");
-          values.push(body.description);
-        }
-        if (body.category_id !== undefined) {
-          updates.push("category_id = ?");
-          values.push(body.category_id);
-        }
-        if (body.completed !== undefined) {
-          updates.push("completed = ?");
-          values.push(body.completed ? 1 : 0);
-        }
-        if (body.priority !== undefined) {
-          updates.push("priority = ?");
-          values.push(body.priority);
-        }
-        if (body.due_date !== undefined) {
-          updates.push("due_date = ?");
-          values.push(body.due_date);
-        }
-        
-        updates.push("updated_at = CURRENT_TIMESTAMP");
-        values.push(id);
-        
-        db.run(
-          `UPDATE todos SET ${updates.join(", ")} WHERE id = ?`,
-          values
-        );
-        
-        const updated = db.query("SELECT * FROM todos WHERE id = ?").get(id);
+        const updated = await db.updateTodo(id, body);
         return Response.json(updated);
       },
       async DELETE(req) {
-        const id = req.params.id;
-        db.run("DELETE FROM todos WHERE id = ?", [id]);
+        const id = parseInt(req.params.id);
+        await db.deleteTodo(id);
         return Response.json({ success: true });
       },
     },
@@ -121,7 +80,7 @@ const server = serve({
     // Categories API
     "/api/categories": {
       async GET(req) {
-        const categories = db.query("SELECT * FROM categories").all();
+        const categories = await db.getAllCategories();
         return Response.json(categories);
       },
       async POST(req) {
@@ -131,11 +90,11 @@ const server = serve({
             return new Response("分类名称不能为空", { status: 400 });
           }
           
-          const result = db.run(
-            "INSERT INTO categories (name, color) VALUES (?, ?)",
-            [body.name.trim(), body.color || '#646cff']
-          );
-          return Response.json({ id: result.lastInsertRowid, ...body });
+          const category = await db.createCategory({
+            name: body.name.trim(),
+            color: body.color || '#646cff'
+          });
+          return Response.json(category);
         } catch (error) {
           console.error("Create category error:", error);
           return new Response("创建分类失败", { status: 500 });
@@ -146,14 +105,11 @@ const server = serve({
     "/api/categories/:id": {
       async PUT(req) {
         try {
-          const id = req.params.id;
+          const id = parseInt(req.params.id);
           const body = await req.json();
           
-          db.run(
-            "UPDATE categories SET name = ?, color = ? WHERE id = ?",
-            [body.name, body.color, id]
-          );
-          return Response.json({ success: true });
+          const updated = await db.updateCategory(id, body);
+          return Response.json(updated);
         } catch (error) {
           console.error("Update category error:", error);
           return new Response("更新分类失败", { status: 500 });
@@ -161,15 +117,15 @@ const server = serve({
       },
       async DELETE(req) {
         try {
-          const id = req.params.id;
+          const id = parseInt(req.params.id);
           
           // 检查是否有待办事项使用此分类
-          const todos = db.query("SELECT COUNT(*) as count FROM todos WHERE category_id = ?").get(id) as { count: number };
-          if (todos.count > 0) {
-            return new Response(`无法删除：还有 ${todos.count} 个待办事项使用此分类`, { status: 400 });
+          const count = await db.getCategoryTodoCount(id);
+          if (count > 0) {
+            return new Response(`无法删除：还有 ${count} 个待办事项使用此分类`, { status: 400 });
           }
           
-          db.run("DELETE FROM categories WHERE id = ?", [id]);
+          await db.deleteCategory(id);
           return Response.json({ success: true });
         } catch (error) {
           console.error("Delete category error:", error);
@@ -181,23 +137,20 @@ const server = serve({
     // Reminders API
     "/api/reminders": {
       async GET(req) {
-        const reminders = db.query("SELECT * FROM reminders WHERE is_active = 1 ORDER BY remind_date").all();
+        const reminders = await db.getActiveReminders();
         return Response.json(reminders);
       },
       async POST(req) {
         const body = await req.json();
-        const result = db.run(
-          "INSERT INTO reminders (title, description, remind_date, repeat_type) VALUES (?, ?, ?, ?)",
-          [body.title, body.description, body.remind_date, body.repeat_type || 'once']
-        );
-        return Response.json({ id: result.lastInsertRowid, ...body });
+        const reminder = await db.createReminder(body);
+        return Response.json(reminder);
       },
     },
 
     // Files API
     "/api/files": {
       async GET(req) {
-        const files = db.query("SELECT * FROM files ORDER BY upload_date DESC").all();
+        const files = await db.getAllFiles();
         return Response.json(files);
       },
     },
@@ -254,14 +207,14 @@ const server = serve({
           }
 
           // 计算 uploads 目录的总大小
-          const files = db.query("SELECT SUM(file_size) as total FROM files").get() as { total: number | null };
-          const uploadsSize = files.total || 0;
+          const uploadsSize = await db.getTotalFileSize();
+          const fileCount = await db.getFileCount();
 
           return Response.json({
             disk: diskInfo,
             uploads: {
               size: uploadsSize,
-              count: db.query("SELECT COUNT(*) as count FROM files").get() as { count: number }
+              count: fileCount
             }
           });
         } catch (error) {
@@ -293,18 +246,14 @@ const server = serve({
           await Bun.write(filepath, arrayBuffer);
 
           // 保存到数据库
-          const result = db.run(
-            "INSERT INTO files (filename, original_name, file_size, mime_type) VALUES (?, ?, ?, ?)",
-            [filename, file.name, file.size, file.type]
-          );
-
-          return Response.json({
-            id: result.lastInsertRowid,
+          const fileRecord = await db.createFile({
             filename,
             original_name: file.name,
             file_size: file.size,
             mime_type: file.type,
           });
+
+          return Response.json(fileRecord);
         } catch (error) {
           console.error("Upload error:", error);
           return new Response("Upload failed", { status: 500 });
@@ -315,8 +264,8 @@ const server = serve({
     "/api/files/:id": {
       async DELETE(req) {
         try {
-          const id = req.params.id;
-          const file = db.query("SELECT * FROM files WHERE id = ?").get(id) as any;
+          const id = parseInt(req.params.id);
+          const file = await db.getFileById(id);
 
           if (!file) {
             return new Response("File not found", { status: 404 });
@@ -329,7 +278,7 @@ const server = serve({
           }
 
           // 从数据库删除记录
-          db.run("DELETE FROM files WHERE id = ?", [id]);
+          await db.deleteFile(id);
 
           return Response.json({ success: true });
         } catch (error) {
@@ -342,8 +291,8 @@ const server = serve({
     "/api/files/:id/download": {
       async GET(req) {
         try {
-          const id = req.params.id;
-          const file = db.query("SELECT * FROM files WHERE id = ?").get(id) as any;
+          const id = parseInt(req.params.id);
+          const file = await db.getFileById(id);
 
           if (!file) {
             return new Response("File not found", { status: 404 });
@@ -355,7 +304,7 @@ const server = serve({
           }
 
           // 更新下载次数
-          db.run("UPDATE files SET download_count = download_count + 1 WHERE id = ?", [id]);
+          await db.incrementFileDownloadCount(id);
 
           // 读取文件并返回
           const fileContent = Bun.file(filepath);

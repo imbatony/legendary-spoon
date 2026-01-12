@@ -1,15 +1,38 @@
-import { Database } from "bun:sqlite";
-import { join } from "path";
+/**
+ * 数据库工厂
+ * 根据环境变量选择数据库适配器
+ */
 
-// 数据库文件路径
-const DB_PATH = join(process.cwd(), "data", "mytools.db");
+import type { DatabaseAdapter } from "./types";
+import { SQLiteAdapter } from "./adapters/sqlite";
+import { SupabaseAdapter } from "./adapters/supabase";
 
-// 创建或打开数据库连接
-export const db = new Database(DB_PATH, { create: true });
+// 从环境变量读取数据库类型，默认为 sqlite
+const DB_TYPE = process.env.DB_TYPE || "sqlite";
 
-// 启用外键约束
-db.run("PRAGMA foreign_keys = ON");
+let db: DatabaseAdapter;
 
-console.log(`📦 Database connected: ${DB_PATH}`);
+switch (DB_TYPE.toLowerCase()) {
+  case "supabase":
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_KEY;
 
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("❌ Supabase configuration missing!");
+      console.error("Please set SUPABASE_URL and SUPABASE_KEY environment variables.");
+      process.exit(1);
+    }
+
+    db = new SupabaseAdapter(supabaseUrl, supabaseKey);
+    console.log("✅ Using Supabase database");
+    break;
+
+  case "sqlite":
+  default:
+    db = new SQLiteAdapter();
+    console.log("✅ Using SQLite database (default)");
+    break;
+}
+
+export { db };
 export default db;

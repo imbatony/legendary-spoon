@@ -165,6 +165,15 @@ code {
 }
 .method option {
   text-align: left;
+  background: #2a2a2a;
+  color: #fbf0df;
+  padding: 0.5rem;
+}
+
+.method option:hover,
+.method option:checked {
+  background: #646cff;
+  color: white;
 }
 .url-input {
   width: 100%;
@@ -427,6 +436,19 @@ code {
   font-size: 1em;
   font-family: inherit;
   box-sizing: border-box;
+}
+
+/* 优化 select 下拉选项样式 */
+.input-select option {
+  background: #2a2a2a;
+  color: rgba(255, 255, 255, 0.87);
+  padding: 0.75rem;
+}
+
+.input-select option:hover,
+.input-select option:checked {
+  background: #646cff;
+  color: white;
 }
 
 .input-text:focus,
