@@ -37,6 +37,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 *.db
 *.sqlite
 *.sqlite3
+data/
+server/data/
 
 # Uploaded files
 uploads/
+server/uploads/

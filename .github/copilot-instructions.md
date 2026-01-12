@@ -1,15 +1,40 @@
 # legendary-spoon - GitHub Copilot Instructions
 
 ## 项目概述
-legendary-spoon 是一个基于 Bun + React + SQLite 的全栈 Web 应用，提供个人工具集功能。
+legendary-spoon 是一个多平台个人工具集，基于 Bun + React + SQLite 构建，支持 Web、Android、Windows 等多种客户端。
+
+## 项目结构
+```
+legendary-spoon/
+├── server/              # 后端服务器 (Bun + SQLite)
+│   ├── src/            # 服务器源码（API 路由、业务逻辑）
+│   ├── db/             # 数据库相关（连接、初始化、迁移）
+│   └── uploads/        # 上传文件存储（不提交到 git）
+├── clients/            # 客户端
+│   ├── web/           # Web 客户端 (React 19 + TypeScript)
+│   ├── android/       # Android 客户端（计划中）
+│   └── windows/       # Windows 客户端（计划中）
+├── shared/            # 共享代码
+│   └── types/         # TypeScript 类型定义（所有客户端共用）
+└── deploy/            # 部署脚本和配置
+```
 
 ## 技术栈
+
+### 后端 (server/)
 - **运行时**: Bun (最新版本)
-- **前端框架**: React 19 + TypeScript
-- **后端**: Bun Server (内置 HTTP 服务器)
 - **数据库**: SQLite (使用 bun:sqlite)
+- **语言**: TypeScript
+- **文件存储**: 本地文件系统（server/uploads/）
+
+### Web 客户端 (clients/web/)
+- **框架**: React 19 + TypeScript
 - **构建工具**: Bun 内置构建工具
 - **样式**: 原生 CSS
+- **热重载**: Bun HMR
+
+### 共享代码 (shared/)
+- **类型定义**: shared/types/ - 所有客户端共用的 TypeScript 接口
 
 ## 主要功能模块
 1. **待办事项 (TODO)** - 支持分类、优先级、截止日期
@@ -82,16 +107,25 @@ legendary-spoon 是一个基于 Bun + React + SQLite 的全栈 Web 应用，提�
 
 ## 文件组织
 
-### src/ (前后端代码)
+### server/src/ (后端服务器)
 - `index.ts` - 服务器入口和 API 路由
-- `frontend.tsx` - React 应用入口（带 HMR）
-- `App.tsx` - 主应用组件
-- `*.tsx` - React 组件
-- `index.css` - 全局样式
 
-### server/ (后端专用)
-- `db/index.ts` - 数据库连接
-- `db/init.ts` - 数据库初始化脚本
+### server/db/ (数据库)
+- `index.ts` - 数据库连接
+- `init.ts` - 数据库初始化脚本
+- `seed.ts` - 种子数据
+
+### clients/web/ (Web 客户端)
+- `index.tsx` - React 应用入口（带 HMR）
+- `App.tsx` - 主应用组件
+- `TodoList.tsx` - 待办事项组件
+- `FileTransfer.tsx` - 文件传输组件
+- `APITester.tsx` - API 测试组件
+- `index.css` - 全局样式
+- `index.html` - HTML 模板
+
+### shared/types/ (共享类型)
+- `index.ts` - TypeScript 接口定义（Todo, Category, FileInfo, Reminder 等）
 
 ## 编码建议
 

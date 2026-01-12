@@ -1,6 +1,6 @@
 import { serve } from "bun";
-import index from "./index.html";
-import db from "../server/db";
+import index from "../../clients/web/index.html";
+import db from "../db";
 import { existsSync, mkdirSync, statSync } from "fs";
 import { join } from "path";
 import { unlink } from "fs/promises";
@@ -10,7 +10,7 @@ import { promisify } from "util";
 const execAsync = promisify(exec);
 
 // 确保上传目录存在
-const UPLOAD_DIR = join(process.cwd(), "uploads");
+const UPLOAD_DIR = join(process.cwd(), "server/uploads");
 if (!existsSync(UPLOAD_DIR)) {
   mkdirSync(UPLOAD_DIR, { recursive: true });
 }

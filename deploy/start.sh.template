@@ -7,4 +7,4 @@ export NODE_ENV=production
 
 # 注意：实际的 Bun 路径将在安装时由脚本自动检测并填充
 # 启动应用
-exec bun run src/index.ts
+exec bun run server/src/index.ts

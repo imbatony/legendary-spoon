@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'legendary-spoon',
       script: 'bun',
-      args: 'run src/index.ts',
+      args: 'run server/src/index.ts',
       cwd: '/path/to/legendary-spoon',
       instances: 1,
       autorestart: true,

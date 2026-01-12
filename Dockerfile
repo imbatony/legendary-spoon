@@ -9,7 +9,7 @@ RUN bun install --frozen-lockfile
 COPY . .
 
 # Create necessary directories
-RUN mkdir -p data uploads logs
+RUN mkdir -p data server/uploads logs
 
 # Expose port
 EXPOSE 3000
@@ -18,4 +18,4 @@ EXPOSE 3000
 ENV NODE_ENV=production
 
 # Start server
-CMD ["bun", "run", "src/index.ts"]
+CMD ["bun", "run", "server/src/index.ts"]
