@@ -23,20 +23,11 @@ legendary-spoon/
 
 ### 后端 (server/)
 - **运行时**: Bun (最新版本)
-<<<<<<< HEAD
-- **数据库**: SQLite (使用 bun:sqlite)
-- **语言**: TypeScript
-- **文件存储**: 本地文件系统（server/uploads/）
-
-### Web 客户端 (clients/web/)
-- **框架**: React 19 + TypeScript
-=======
 - **前端框架**: React 19 + TypeScript
 - **后端**: Bun Server (内置 HTTP 服务器)
 - **数据库**: 
   - SQLite (默认，使用 bun:sqlite)
   - Supabase (可选，PostgreSQL)
->>>>>>> faeb79641c1a2f7f71c4e462d6e3f16695f74f3b
 - **构建工具**: Bun 内置构建工具
 - **样式**: 原生 CSS
 - **热重载**: Bun HMR

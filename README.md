@@ -26,20 +26,6 @@ legendary-spoon/
 3. **提醒** - 支持设置提醒（孩子生日、结婚纪念日等），支持重复提醒
 4. 未完待续
 
-<<<<<<< HEAD
-## 技术栈
-
-### 后端
-- **运行时**: Bun (最新版本)
-- **数据库**: SQLite (使用 bun:sqlite)
-- **语言**: TypeScript
-
-### Web 客户端
-- **框架**: React 19
-- **语言**: TypeScript
-- **样式**: 原生 CSS
-- **构建**: Bun 内置构建工具
-=======
 ## 主要技术栈
 - **运行时**: Bun
 - **前端**: React 19
@@ -83,7 +69,6 @@ DB_TYPE=sqlite
 # 使用 Supabase
 DB_TYPE=supabase
 ```
->>>>>>> faeb79641c1a2f7f71c4e462d6e3f16695f74f3b
 
 ## 开发指南
 
