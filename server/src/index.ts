@@ -6,6 +6,14 @@ import { join } from "path";
 import { unlink } from "fs/promises";
 import { exec } from "child_process";
 import { promisify } from "util";
+import {
+  generateToken,
+  requireAuth,
+  requireApiKey,
+  requireAnyAuth,
+  verifyPassword,
+  hashPassword,
+} from "./auth";
 
 const execAsync = promisify(exec);
 
@@ -42,13 +50,333 @@ const server = serve({
       });
     },
 
-    // TODO API
+    // ==================== 认证 API ====================
+
+    // 检查是否需要初始化
+    "/api/auth/init-status": {
+      async GET(req) {
+        const hasUsers = await db.hasUsers();
+        return Response.json({ initialized: hasUsers });
+      },
+    },
+
+    // 初始化账号（首次使用）
+    "/api/auth/init": {
+      async POST(req) {
+        try {
+          const hasUsers = await db.hasUsers();
+          if (hasUsers) {
+            return new Response("系统已初始化", { status: 400 });
+          }
+
+          const body = await req.json();
+          const { username, password } = body;
+
+          if (!username || !password) {
+            return new Response("用户名和密码不能为空", { status: 400 });
+          }
+
+          if (password.length < 6) {
+            return new Response("密码长度至少为 6 位", { status: 400 });
+          }
+
+          const user = await db.createUser({ username, password });
+          const token = generateToken(user.id, user.username);
+
+          return Response.json({
+            token,
+            user: {
+              id: user.id,
+              username: user.username,
+              created_at: user.created_at,
+            },
+          });
+        } catch (error) {
+          console.error("Init error:", error);
+          return new Response("初始化失败", { status: 500 });
+        }
+      },
+    },
+
+    // 登录
+    "/api/auth/login": {
+      async POST(req) {
+        try {
+          const body = await req.json();
+          const { username, password } = body;
+
+          if (!username || !password) {
+            return new Response("用户名和密码不能为空", { status: 400 });
+          }
+
+          const user = await db.getUserByUsername(username);
+          if (!user) {
+            return new Response("用户名或密码错误", { status: 401 });
+          }
+
+          const valid = await verifyPassword(password, user.password_hash);
+          if (!valid) {
+            return new Response("用户名或密码错误", { status: 401 });
+          }
+
+          const token = generateToken(user.id, user.username);
+
+          return Response.json({
+            token,
+            user: {
+              id: user.id,
+              username: user.username,
+              created_at: user.created_at,
+            },
+          });
+        } catch (error) {
+          console.error("Login error:", error);
+          return new Response("登录失败", { status: 500 });
+        }
+      },
+    },
+
+    // 验证 Token
+    "/api/auth/verify": {
+      async GET(req) {
+        const authResult = await requireAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
+        return Response.json({
+          userId: authResult.userId,
+          username: authResult.username,
+        });
+      },
+    },
+
+    // 修改密码
+    "/api/auth/change-password": {
+      async POST(req) {
+        const authResult = await requireAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
+        try {
+          const body = await req.json();
+          const { oldPassword, newPassword } = body;
+
+          if (!oldPassword || !newPassword) {
+            return new Response("旧密码和新密码不能为空", { status: 400 });
+          }
+
+          if (newPassword.length < 6) {
+            return new Response("新密码长度至少为 6 位", { status: 400 });
+          }
+
+          const user = await db.getUserByUsername(authResult.username);
+          if (!user) {
+            return new Response("用户不存在", { status: 404 });
+          }
+
+          const valid = await verifyPassword(oldPassword, user.password_hash);
+          if (!valid) {
+            return new Response("旧密码错误", { status: 401 });
+          }
+
+          const newHash = await hashPassword(newPassword);
+          await db.updateUserPassword(user.id, newHash);
+
+          return Response.json({ success: true, message: "密码修改成功" });
+        } catch (error) {
+          console.error("Change password error:", error);
+          return new Response("修改密码失败", { status: 500 });
+        }
+      },
+    },
+
+    // 重置密码（使用服务器密码文件）
+    "/api/auth/reset-password": {
+      async POST(req) {
+        try {
+          const body = await req.json();
+          const { username, resetCode, newPassword } = body;
+
+          if (!username || !resetCode || !newPassword) {
+            return new Response("缺少必要参数", { status: 400 });
+          }
+
+          // 读取服务器上的重置码文件
+          const resetFilePath = join(process.cwd(), "data", ".reset_code");
+          if (!existsSync(resetFilePath)) {
+            return new Response("未找到重置码，请联系管理员", { status: 400 });
+          }
+
+          const fileContent = await Bun.file(resetFilePath).text();
+          const [storedCode, timestamp] = fileContent.trim().split(":");
+
+          // 验证重置码是否过期（24小时有效）
+          const codeAge = Date.now() - parseInt(timestamp);
+          if (codeAge > 24 * 60 * 60 * 1000) {
+            await unlink(resetFilePath);
+            return new Response("重置码已过期", { status: 400 });
+          }
+
+          if (resetCode !== storedCode) {
+            return new Response("重置码错误", { status: 401 });
+          }
+
+          const user = await db.getUserByUsername(username);
+          if (!user) {
+            return new Response("用户不存在", { status: 404 });
+          }
+
+          if (newPassword.length < 6) {
+            return new Response("新密码长度至少为 6 位", { status: 400 });
+          }
+
+          const newHash = await hashPassword(newPassword);
+          await db.updateUserPassword(user.id, newHash);
+
+          // 删除重置码文件
+          await unlink(resetFilePath);
+
+          return Response.json({ success: true, message: "密码重置成功" });
+        } catch (error) {
+          console.error("Reset password error:", error);
+          return new Response("重置密码失败", { status: 500 });
+        }
+      },
+    },
+
+    // 生成重置码（服务器端脚本调用）
+    "/api/auth/generate-reset-code": {
+      async POST(req) {
+        try {
+          const body = await req.json();
+          const { serverSecret } = body;
+
+          // 验证服务器密钥
+          const expectedSecret = process.env.SERVER_SECRET || "change-this-secret";
+          if (serverSecret !== expectedSecret) {
+            return new Response("无权限", { status: 403 });
+          }
+
+          // 生成 6 位数字重置码
+          const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+          const timestamp = Date.now().toString();
+
+          // 保存到文件
+          const dataDir = join(process.cwd(), "data");
+          if (!existsSync(dataDir)) {
+            mkdirSync(dataDir, { recursive: true });
+          }
+
+          const resetFilePath = join(dataDir, ".reset_code");
+          await Bun.write(resetFilePath, `${resetCode}:${timestamp}`);
+
+          return Response.json({
+            resetCode,
+            expiresIn: "24 小时",
+            message: "重置码已生成，请在 24 小时内使用",
+          });
+        } catch (error) {
+          console.error("Generate reset code error:", error);
+          return new Response("生成重置码失败", { status: 500 });
+        }
+      },
+    },
+
+    // ==================== API Key 管理 ====================
+
+    // 获取当前用户的所有 API Key
+    "/api/api-keys": {
+      async GET(req) {
+        const authResult = await requireAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
+        const apiKeys = await db.getUserApiKeys(authResult.userId);
+        return Response.json(apiKeys);
+      },
+      async POST(req) {
+        const authResult = await requireAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
+        try {
+          const body = await req.json();
+          const { name } = body;
+
+          if (!name || !name.trim()) {
+            return new Response("API Key 名称不能为空", { status: 400 });
+          }
+
+          const apiKey = await db.createApiKey({
+            user_id: authResult.userId,
+            name: name.trim(),
+          });
+
+          return Response.json(apiKey);
+        } catch (error) {
+          console.error("Create API key error:", error);
+          return new Response("创建 API Key 失败", { status: 500 });
+        }
+      },
+    },
+
+    // 更新和删除 API Key
+    "/api/api-keys/:id": {
+      async PUT(req) {
+        const authResult = await requireAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
+        try {
+          const id = parseInt(req.params.id);
+          const body = await req.json();
+
+          const updated = await db.updateApiKey(id, body);
+          return Response.json(updated);
+        } catch (error) {
+          console.error("Update API key error:", error);
+          return new Response("更新 API Key 失败", { status: 500 });
+        }
+      },
+      async DELETE(req) {
+        const authResult = await requireAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
+        try {
+          const id = parseInt(req.params.id);
+          await db.deleteApiKey(id);
+          return Response.json({ success: true });
+        } catch (error) {
+          console.error("Delete API key error:", error);
+          return new Response("删除 API Key 失败", { status: 500 });
+        }
+      },
+    },
+
+    // ==================== TODO API ====================
     "/api/todos": {
       async GET(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         const todos = await db.getAllTodos();
         return Response.json(todos);
       },
       async POST(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         const body = await req.json();
         const todo = await db.createTodo(body);
         return Response.json(todo);
@@ -57,6 +385,11 @@ const server = serve({
 
     "/api/todos/:id": {
       async GET(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         const id = parseInt(req.params.id);
         const todo = await db.getTodoById(id);
         if (!todo) {
@@ -65,12 +398,22 @@ const server = serve({
         return Response.json(todo);
       },
       async PUT(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         const id = parseInt(req.params.id);
         const body = await req.json();
         const updated = await db.updateTodo(id, body);
         return Response.json(updated);
       },
       async DELETE(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         const id = parseInt(req.params.id);
         await db.deleteTodo(id);
         return Response.json({ success: true });
@@ -80,10 +423,20 @@ const server = serve({
     // Categories API
     "/api/categories": {
       async GET(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         const categories = await db.getAllCategories();
         return Response.json(categories);
       },
       async POST(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         try {
           const body = await req.json();
           if (!body.name || !body.name.trim()) {
@@ -104,6 +457,11 @@ const server = serve({
 
     "/api/categories/:id": {
       async PUT(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         try {
           const id = parseInt(req.params.id);
           const body = await req.json();
@@ -116,6 +474,11 @@ const server = serve({
         }
       },
       async DELETE(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         try {
           const id = parseInt(req.params.id);
           
@@ -137,10 +500,20 @@ const server = serve({
     // Reminders API
     "/api/reminders": {
       async GET(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         const reminders = await db.getActiveReminders();
         return Response.json(reminders);
       },
       async POST(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         const body = await req.json();
         const reminder = await db.createReminder(body);
         return Response.json(reminder);
@@ -150,6 +523,11 @@ const server = serve({
     // Files API
     "/api/files": {
       async GET(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         const files = await db.getAllFiles();
         return Response.json(files);
       },
@@ -157,6 +535,11 @@ const server = serve({
 
     "/api/files/storage": {
       async GET(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         try {
           // 获取磁盘使用情况
           let diskInfo = { total: 0, used: 0, available: 0 };
@@ -226,6 +609,11 @@ const server = serve({
 
     "/api/files/upload": {
       async POST(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         try {
           const formData = await req.formData();
           const file = formData.get("file") as File;
@@ -263,6 +651,11 @@ const server = serve({
 
     "/api/files/:id": {
       async DELETE(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         try {
           const id = parseInt(req.params.id);
           const file = await db.getFileById(id);
@@ -290,6 +683,11 @@ const server = serve({
 
     "/api/files/:id/download": {
       async GET(req) {
+        const authResult = await requireAnyAuth(req);
+        if (authResult instanceof Response) {
+          return authResult;
+        }
+
         try {
           const id = parseInt(req.params.id);
           const file = await db.getFileById(id);

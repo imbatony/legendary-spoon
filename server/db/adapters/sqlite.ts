@@ -12,6 +12,8 @@ import type {
   Todo,
   FileRecord,
   Reminder,
+  User,
+  ApiKey,
   CreateCategoryInput,
   UpdateCategoryInput,
   CreateTodoInput,
@@ -19,6 +21,9 @@ import type {
   CreateFileInput,
   CreateReminderInput,
   UpdateReminderInput,
+  CreateUserInput,
+  CreateApiKeyInput,
+  UpdateApiKeyInput,
 } from "../types";
 
 export class SQLiteAdapter implements DatabaseAdapter {
@@ -94,6 +99,31 @@ export class SQLiteAdapter implements DatabaseAdapter {
         is_active BOOLEAN DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 创建用户表
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 创建 API Key 表
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS api_keys (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        key TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        is_active BOOLEAN DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_used_at DATETIME,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
 
@@ -316,5 +346,87 @@ export class SQLiteAdapter implements DatabaseAdapter {
   async deleteReminder(id: number): Promise<boolean> {
     this.db.run("DELETE FROM reminders WHERE id = ?", [id]);
     return true;
+  }
+
+  // ==================== 用户操作 ====================
+
+  async createUser(data: CreateUserInput): Promise<User> {
+    const passwordHash = await Bun.password.hash(data.password);
+    const result = this.db.run(
+      "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+      [data.username, passwordHash]
+    );
+    const user = this.db.query("SELECT id, username, created_at, updated_at FROM users WHERE id = ?").get(result.lastInsertRowid) as User;
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | null> {
+    return this.db.query("SELECT * FROM users WHERE username = ?").get(username) as User | null;
+  }
+
+  async updateUserPassword(id: number, passwordHash: string): Promise<boolean> {
+    this.db.run(
+      "UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      [passwordHash, id]
+    );
+    return true;
+  }
+
+  async hasUsers(): Promise<boolean> {
+    const result = this.db.query("SELECT COUNT(*) as count FROM users").get() as { count: number };
+    return result.count > 0;
+  }
+
+  // ==================== API Key 操作 ====================
+
+  async createApiKey(data: CreateApiKeyInput): Promise<ApiKey> {
+    // 生成随机 API Key
+    const key = `sk_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}${Date.now().toString(36)}`;
+    
+    const result = this.db.run(
+      "INSERT INTO api_keys (user_id, key, name) VALUES (?, ?, ?)",
+      [data.user_id, key, data.name]
+    );
+    const apiKey = this.db.query("SELECT * FROM api_keys WHERE id = ?").get(result.lastInsertRowid) as ApiKey;
+    return apiKey;
+  }
+
+  async getUserApiKeys(userId: number): Promise<ApiKey[]> {
+    return this.db.query("SELECT * FROM api_keys WHERE user_id = ? ORDER BY created_at DESC").all(userId) as ApiKey[];
+  }
+
+  async getApiKeyByKey(key: string): Promise<ApiKey | null> {
+    return this.db.query("SELECT * FROM api_keys WHERE key = ? AND is_active = 1").get(key) as ApiKey | null;
+  }
+
+  async updateApiKey(id: number, data: UpdateApiKeyInput): Promise<ApiKey | null> {
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (data.name !== undefined) {
+      updates.push("name = ?");
+      values.push(data.name);
+    }
+    if (data.is_active !== undefined) {
+      updates.push("is_active = ?");
+      values.push(data.is_active ? 1 : 0);
+    }
+
+    if (updates.length === 0) {
+      return this.db.query("SELECT * FROM api_keys WHERE id = ?").get(id) as ApiKey | null;
+    }
+
+    values.push(id);
+    this.db.run(`UPDATE api_keys SET ${updates.join(", ")} WHERE id = ?`, values);
+    return this.db.query("SELECT * FROM api_keys WHERE id = ?").get(id) as ApiKey | null;
+  }
+
+  async deleteApiKey(id: number): Promise<boolean> {
+    this.db.run("DELETE FROM api_keys WHERE id = ?", [id]);
+    return true;
+  }
+
+  async updateApiKeyLastUsed(id: number): Promise<void> {
+    this.db.run("UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
   }
 }

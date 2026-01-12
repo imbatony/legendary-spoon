@@ -10,6 +10,7 @@
     "start": "NODE_ENV=production bun server/src/index.ts",
     "db:init": "bun run server/db/init.ts",
     "db:seed": "bun run server/db/seed.ts",
+    "reset-password": "bun run server/scripts/generate-reset-code.ts",
     "deploy": "bash deploy/deploy.sh",
     "logs": "sudo journalctl -u legendary-spoon -f"
   },

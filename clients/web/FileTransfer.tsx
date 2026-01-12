@@ -22,13 +22,28 @@ interface StorageInfo {
   };
 }
 
-export function FileTransfer() {
+interface FileTransferProps {
+  token: string;
+}
+
+export function FileTransfer({ token }: FileTransferProps) {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
+
+  // 辅助函数：带认证的 fetch
+  const authFetch = (url: string, options: RequestInit = {}) => {
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  };
 
   useEffect(() => {
     fetchFiles();
@@ -38,7 +53,7 @@ export function FileTransfer() {
   const fetchFiles = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/files");
+      const response = await authFetch("/api/files");
       const data = await response.json();
       setFiles(data);
     } catch (error) {
@@ -50,7 +65,7 @@ export function FileTransfer() {
 
   const fetchStorageInfo = async () => {
     try {
-      const response = await fetch("/api/files/storage");
+      const response = await authFetch("/api/files/storage");
       const data = await response.json();
       setStorageInfo(data);
     } catch (error) {
@@ -82,7 +97,7 @@ export function FileTransfer() {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      const response = await fetch("/api/files/upload", {
+      const response = await authFetch("/api/files/upload", {
         method: "POST",
         body: formData,
       });
@@ -109,7 +124,7 @@ export function FileTransfer() {
 
   const handleDownload = async (file: FileInfo) => {
     try {
-      const response = await fetch(`/api/files/${file.id}/download`);
+      const response = await authFetch(`/api/files/${file.id}/download`);
       if (!response.ok) throw new Error("Download failed");
 
       const blob = await response.blob();
@@ -134,7 +149,7 @@ export function FileTransfer() {
     if (!confirm(`确定要删除「${filename}」吗？`)) return;
 
     try {
-      const response = await fetch(`/api/files/${id}`, {
+      const response = await authFetch(`/api/files/${id}`, {
         method: "DELETE",
       });
 

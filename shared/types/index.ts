@@ -40,6 +40,33 @@ export interface Reminder {
   updated_at: string;
 }
 
+export interface User {
+  id: number;
+  username: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiKey {
+  id: number;
+  user_id: number;
+  key: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: User;
+}
+
 export interface APIResponse<T = any> {
   success: boolean;
   data?: T;

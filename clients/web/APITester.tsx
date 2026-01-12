@@ -1,6 +1,10 @@
 import { useRef, type FormEvent } from "react";
 
-export function APITester() {
+interface APITesterProps {
+  token: string;
+}
+
+export function APITester({ token }: APITesterProps) {
   const responseInputRef = useRef<HTMLTextAreaElement>(null);
 
   const testEndpoint = async (e: FormEvent<HTMLFormElement>) => {
@@ -12,7 +16,12 @@ export function APITester() {
       const endpoint = formData.get("endpoint") as string;
       const url = new URL(endpoint, location.href);
       const method = formData.get("method") as string;
-      const res = await fetch(url, { method });
+      const res = await fetch(url, {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       const data = await res.json();
       responseInputRef.current!.value = JSON.stringify(data, null, 2);

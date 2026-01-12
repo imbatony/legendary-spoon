@@ -45,6 +45,24 @@ export interface Reminder {
   updated_at: string;
 }
 
+export interface User {
+  id: number;
+  username: string;
+  password_hash: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiKey {
+  id: number;
+  user_id: number;
+  key: string;
+  name: string;
+  is_active: boolean | number;
+  created_at: string;
+  last_used_at: string | null;
+}
+
 // ==================== 输入类型 ====================
 
 export interface CreateCategoryInput {
@@ -93,6 +111,21 @@ export interface UpdateReminderInput {
   description?: string;
   remind_date?: string;
   repeat_type?: 'once' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+  is_active?: boolean;
+}
+
+export interface CreateUserInput {
+  username: string;
+  password: string;
+}
+
+export interface CreateApiKeyInput {
+  user_id: number;
+  name: string;
+}
+
+export interface UpdateApiKeyInput {
+  name?: string;
   is_active?: boolean;
 }
 
@@ -215,4 +248,58 @@ export interface DatabaseAdapter {
    * 删除提醒
    */
   deleteReminder(id: number): Promise<boolean>;
+
+  // ==================== 用户操作 ====================
+  
+  /**
+   * 创建用户（初始化时）
+   */
+  createUser(data: CreateUserInput): Promise<User>;
+  
+  /**
+   * 根据用户名获取用户
+   */
+  getUserByUsername(username: string): Promise<User | null>;
+  
+  /**
+   * 更新用户密码
+   */
+  updateUserPassword(id: number, passwordHash: string): Promise<boolean>;
+  
+  /**
+   * 检查是否存在任何用户
+   */
+  hasUsers(): Promise<boolean>;
+
+  // ==================== API Key 操作 ====================
+  
+  /**
+   * 创建 API Key
+   */
+  createApiKey(data: CreateApiKeyInput): Promise<ApiKey>;
+  
+  /**
+   * 获取用户的所有 API Key
+   */
+  getUserApiKeys(userId: number): Promise<ApiKey[]>;
+  
+  /**
+   * 根据 Key 值获取 API Key
+   */
+  getApiKeyByKey(key: string): Promise<ApiKey | null>;
+  
+  /**
+   * 更新 API Key
+   */
+  updateApiKey(id: number, data: UpdateApiKeyInput): Promise<ApiKey | null>;
+  
+  /**
+   * 删除 API Key
+   */
+  deleteApiKey(id: number): Promise<boolean>;
+  
+  /**
+   * 更新 API Key 最后使用时间
+   */
+  updateApiKeyLastUsed(id: number): Promise<void>;
 }

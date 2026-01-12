@@ -10,6 +10,8 @@ import type {
   Todo,
   FileRecord,
   Reminder,
+  User,
+  ApiKey,
   CreateCategoryInput,
   UpdateCategoryInput,
   CreateTodoInput,
@@ -17,6 +19,9 @@ import type {
   CreateFileInput,
   CreateReminderInput,
   UpdateReminderInput,
+  CreateUserInput,
+  CreateApiKeyInput,
+  UpdateApiKeyInput,
 } from "../types";
 
 export class SupabaseAdapter implements DatabaseAdapter {
@@ -326,5 +331,147 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
     if (error) throw new Error(`Failed to delete reminder: ${error.message}`);
     return true;
+  }
+
+  // ==================== 用户操作 ====================
+
+  async createUser(input: CreateUserInput): Promise<User> {
+    const passwordHash = await Bun.password.hash(input.password);
+    const { data, error } = await this.supabase
+      .from("users")
+      .insert({
+        username: input.username,
+        password_hash: passwordHash,
+      })
+      .select("id, username, created_at, updated_at")
+      .single();
+
+    if (error) throw new Error(`Failed to create user: ${error.message}`);
+    return data;
+  }
+
+  async getUserByUsername(username: string): Promise<User | null> {
+    const { data, error } = await this.supabase
+      .from("users")
+      .select("*")
+      .eq("username", username)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      throw new Error(`Failed to get user: ${error.message}`);
+    }
+    return data || null;
+  }
+
+  async updateUserPassword(id: number, passwordHash: string): Promise<boolean> {
+    const { error } = await this.supabase
+      .from("users")
+      .update({
+        password_hash: passwordHash,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) throw new Error(`Failed to update password: ${error.message}`);
+    return true;
+  }
+
+  async hasUsers(): Promise<boolean> {
+    const { count, error } = await this.supabase
+      .from("users")
+      .select("*", { count: "exact", head: true });
+
+    if (error) throw new Error(`Failed to check users: ${error.message}`);
+    return (count || 0) > 0;
+  }
+
+  // ==================== API Key 操作 ====================
+
+  async createApiKey(input: CreateApiKeyInput): Promise<ApiKey> {
+    // 生成随机 API Key
+    const key = `sk_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}${Date.now().toString(36)}`;
+    
+    const { data, error } = await this.supabase
+      .from("api_keys")
+      .insert({
+        user_id: input.user_id,
+        key: key,
+        name: input.name,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to create API key: ${error.message}`);
+    return data;
+  }
+
+  async getUserApiKeys(userId: number): Promise<ApiKey[]> {
+    const { data, error } = await this.supabase
+      .from("api_keys")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(`Failed to get API keys: ${error.message}`);
+    return data || [];
+  }
+
+  async getApiKeyByKey(key: string): Promise<ApiKey | null> {
+    const { data, error } = await this.supabase
+      .from("api_keys")
+      .select("*")
+      .eq("key", key)
+      .eq("is_active", true)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      throw new Error(`Failed to get API key: ${error.message}`);
+    }
+    return data || null;
+  }
+
+  async updateApiKey(id: number, input: UpdateApiKeyInput): Promise<ApiKey | null> {
+    const updateData: any = {};
+    if (input.name !== undefined) updateData.name = input.name;
+    if (input.is_active !== undefined) updateData.is_active = input.is_active;
+
+    if (Object.keys(updateData).length === 0) {
+      const { data } = await this.supabase
+        .from("api_keys")
+        .select("*")
+        .eq("id", id)
+        .single();
+      return data || null;
+    }
+
+    const { data, error } = await this.supabase
+      .from("api_keys")
+      .update(updateData)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to update API key: ${error.message}`);
+    return data;
+  }
+
+  async deleteApiKey(id: number): Promise<boolean> {
+    const { error } = await this.supabase
+      .from("api_keys")
+      .delete()
+      .eq("id", id);
+
+    if (error) throw new Error(`Failed to delete API key: ${error.message}`);
+    return true;
+  }
+
+  async updateApiKeyLastUsed(id: number): Promise<void> {
+    const { error } = await this.supabase
+      .from("api_keys")
+      .update({ last_used_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) throw new Error(`Failed to update API key last used: ${error.message}`);
   }
 }

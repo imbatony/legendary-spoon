@@ -48,6 +48,26 @@ CREATE TABLE IF NOT EXISTS reminders (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 创建用户表
+CREATE TABLE IF NOT EXISTS users (
+  id BIGSERIAL PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 创建 API Key 表
+CREATE TABLE IF NOT EXISTS api_keys (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  key TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  last_used_at TIMESTAMPTZ
+);
+
 -- 插入默认分类
 INSERT INTO categories (name, color) 
 VALUES 
@@ -63,6 +83,9 @@ CREATE INDEX IF NOT EXISTS idx_todos_created_at ON todos(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_reminders_active ON reminders(is_active) WHERE is_active = TRUE;
 CREATE INDEX IF NOT EXISTS idx_reminders_date ON reminders(remind_date);
 CREATE INDEX IF NOT EXISTS idx_files_upload_date ON files(upload_date DESC);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key);
+CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id);
 
 -- 创建触发器自动更新 updated_at 字段
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -80,6 +103,11 @@ CREATE TRIGGER update_todos_updated_at
 
 CREATE TRIGGER update_reminders_updated_at 
   BEFORE UPDATE ON reminders 
+  FOR EACH ROW 
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_users_updated_at 
+  BEFORE UPDATE ON users 
   FOR EACH ROW 
   EXECUTE FUNCTION update_updated_at_column();
 

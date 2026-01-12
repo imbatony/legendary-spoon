@@ -19,15 +19,26 @@ interface Todo {
 }
 
 interface TodoListProps {
-  // 可以在这里添加 props
+  token: string;
 }
 
-export function TodoList({}: TodoListProps) {
+export function TodoList({ token }: TodoListProps) {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
+
+  // 辅助函数：带认证的 fetch
+  const authFetch = (url: string, options: RequestInit = {}) => {
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  };
   const [filterCategory, setFilterCategory] = useState<number | null>(null);
   const [filterCompleted, setFilterCompleted] = useState<'all' | 'active' | 'completed'>('all');
 
@@ -61,7 +72,7 @@ export function TodoList({}: TodoListProps) {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch("/api/categories");
+      const response = await authFetch("/api/categories");
       const data = await response.json();
       setCategories(data);
     } catch (error) {
@@ -72,7 +83,7 @@ export function TodoList({}: TodoListProps) {
   const fetchTodos = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/todos");
+      const response = await authFetch("/api/todos");
       const data = await response.json();
       setTodos(data);
     } catch (error) {
@@ -87,7 +98,7 @@ export function TodoList({}: TodoListProps) {
     if (!newTodo.title.trim()) return;
 
     try {
-      const response = await fetch("/api/todos", {
+      const response = await authFetch("/api/todos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -114,7 +125,7 @@ export function TodoList({}: TodoListProps) {
 
   const handleToggleComplete = async (todo: Todo) => {
     try {
-      const response = await fetch(`/api/todos/${todo.id}`, {
+      const response = await authFetch(`/api/todos/${todo.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ completed: !todo.completed }),
@@ -132,7 +143,7 @@ export function TodoList({}: TodoListProps) {
     if (!confirm("确定要删除这个待办事项吗？")) return;
 
     try {
-      const response = await fetch(`/api/todos/${id}`, {
+      const response = await authFetch(`/api/todos/${id}`, {
         method: "DELETE",
       });
 
@@ -150,7 +161,7 @@ export function TodoList({}: TodoListProps) {
     if (!newCategory.name.trim()) return;
 
     try {
-      const response = await fetch("/api/categories", {
+      const response = await authFetch("/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newCategory),
@@ -171,7 +182,7 @@ export function TodoList({}: TodoListProps) {
 
   const handleUpdateCategory = async (category: Category) => {
     try {
-      const response = await fetch(`/api/categories/${category.id}`, {
+      const response = await authFetch(`/api/categories/${category.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: category.name, color: category.color }),
@@ -191,7 +202,7 @@ export function TodoList({}: TodoListProps) {
     if (!confirm("确定要删除这个分类吗？")) return;
 
     try {
-      const response = await fetch(`/api/categories/${id}`, {
+      const response = await authFetch(`/api/categories/${id}`, {
         method: "DELETE",
       });
 
@@ -295,14 +306,14 @@ export function TodoList({}: TodoListProps) {
                       onClick={() => handleUpdateCategory(editingCategory)}
                       title="保存"
                     >
-                      ✓
+                      ✅
                     </button>
                     <button 
                       className="btn-icon"
                       onClick={() => setEditingCategory(null)}
                       title="取消"
                     >
-                      ✕
+                      ❌
                     </button>
                   </>
                 ) : (
